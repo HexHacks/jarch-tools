@@ -89,7 +89,7 @@ def find_subdicts(json_obj, containing=None):
     log("Found {}".format(str(len(out))))
     return out
 
-def get_interesting_values(fields_obj):
+def get_interesting_values(fields_obj, keys_of_interest):
     '''
         Given a 'fields'-dict of keys ('name') and values ('value').
         For example:
@@ -105,7 +105,6 @@ def get_interesting_values(fields_obj):
 
     dict_key = 'name'
     dict_val = 'value'
-    keys_of_interest = {'username_or_email', 'password'}
     out = {}
     for _o in fields_obj:
 
@@ -118,7 +117,7 @@ def get_interesting_values(fields_obj):
     return out
 
 
-def get_values(item_name):
+def fetch_op_item(item_name, keys_of_interest):
     '''
         Given an item name, find it in the 'op'-storage and interpret
     '''
@@ -131,12 +130,19 @@ def get_values(item_name):
     subdict = find_subdicts(json_obj)
     fields = find_subdicts(subdict, 'fields')[0]['fields']
 
-    return get_interesting_values(fields)
+    return get_interesting_values(fields, keys_of_interest)
 
 login(ARGS.user)
 
+KEYS_OF_INTEREST = {
+    'username',
+    'username_or_email',
+    'user[password]',
+    'password'
+}
+
 if ARGS.item is not None:
-    item = get_values(ARGS.item)
+    item = fetch_op_item(ARGS.item, KEYS_OF_INTEREST)
     for _k, _v in item.items():
         print("{}: {}".format(_k, _v))
 
