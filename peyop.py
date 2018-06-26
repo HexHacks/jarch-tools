@@ -1,4 +1,5 @@
-#!/usr/bin/python3
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 '''
 
@@ -13,25 +14,15 @@ import argparse
 import subprocess as sp
 import json
 
-PARSER = argparse.ArgumentParser(description='Wrapper around the op (1password) utility')
-PARSER.add_argument('user', type=str,
-                    help='1password user name.')
-PARSER.add_argument('item', type=str,
-                    help='An item to search for in the vault.')
+from util import stdout_to_less
 
-#PARSER.add_argument('-c', '--no-clipboard', action='store_true',
-#                   help='Don\'t copy the output to the clipboard.')
-
-PARSER.add_argument('-v', '--verbose', action='store_true',
-                    help='Print out debug information.')
-
-ARGS = PARSER.parse_args()
+VERBOSE = False
 
 def log(msg):
     '''
         Log a message iff verbose argument set
     '''
-    if ARGS.verbose:
+    if VERBOSE:
         print(msg)
 
 def remove_newline(str_):
@@ -72,8 +63,8 @@ def login(user):
         os.environ[key] = val
 
 def find_subdicts(json_obj, containing=None):
-    '''
-        Trim any non-dict type objects and optionally look for a specific container.
+    ''' Trim any non-dict type objects and optionally
+        look for a specific container.
     '''
     log("find_subdicts(containing=\'{}\')".format(containing))
     out = []
@@ -90,8 +81,7 @@ def find_subdicts(json_obj, containing=None):
     return out
 
 def get_interesting_values(fields_obj, keys_of_interest):
-    '''
-        Given a 'fields'-dict of keys ('name') and values ('value').
+    ''' Given a 'fields'-dict of keys ('name') and values ('value').
         For example:
             >>> parent = {
                     'fields': { {'name':'Jacob', 'value': True},
@@ -118,8 +108,7 @@ def get_interesting_values(fields_obj, keys_of_interest):
 
 
 def fetch_op_item(item_name, keys_of_interest):
-    '''
-        Given an item name, find it in the 'op'-storage and interpret
+    ''' Given an item name, find it in the 'op'-storage and interpret
     '''
     log('')
     log("--> op get item " + item_name)
@@ -132,7 +121,20 @@ def fetch_op_item(item_name, keys_of_interest):
 
     return get_interesting_values(fields, keys_of_interest)
 
-login(ARGS.user)
+def fetch_op_list_all(keys_of_interest):
+   ''' List all items and return keys of interest
+   '''
+   log('')
+   log('--> op list items')
+   output = sp.check_output(['op', 'list', 'items'])
+
+   json_obj = json.loads(output)
+   return json_obj
+
+
+def print_dict(d):
+    for _k, _v in d.items():
+        print("{}: {}".format(_k, _v))
 
 KEYS_OF_INTEREST = {
     'username',
@@ -141,10 +143,51 @@ KEYS_OF_INTEREST = {
     'password'
 }
 
-if ARGS.item is not None:
-    item = fetch_op_item(ARGS.item, KEYS_OF_INTEREST)
-    for _k, _v in item.items():
-        print("{}: {}".format(_k, _v))
+def user_get(args):
+    out = fetch_op_item(args.item, KEYS_OF_INTEREST)
+    print_dict(out)
 
-#if not ARGS.no_clipboard:
-#    print('CLIPBOARD NOT IMPLEMENTED.')
+def user_list(args):
+    out = fetch_op_list_all(KEYS_OF_INTEREST)
+
+    with stdout_to_less():
+        print(json.dumps(out, indent=4, sort_keys=True))
+
+
+def main():
+    ''' Parse and execute user desired functions
+    '''
+    global VERBOSE
+
+    parser = argparse.ArgumentParser(
+            description='Wrapper around the op (1password) utility'
+    )
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='Print out debug information.')
+
+    subparsers = parser.add_subparsers(help='Sub command options')
+
+    # peyop list
+    list_parse = subparsers.add_parser('list', description='List all items')
+    list_parse.set_defaults(user_func=user_list)
+
+    # peyop get [item]
+    get_parse = subparsers.add_parser('get', description='Get a particular item')
+    get_parse.add_argument('item', type=str,
+                        help='An item to search for in the vault.')
+    get_parse.set_defaults(user_func=user_get)
+
+    parser.add_argument('user', type=str,
+                        help='1password user name.')
+    # Do the parsing
+    args = parser.parse_args()
+
+    VERBOSE = args.verbose
+
+    # All commands require us to do a login
+    login(args.user)
+
+    args.user_func(args)
+
+if __name__ == "__main__":
+    main()
