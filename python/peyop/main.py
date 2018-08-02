@@ -16,6 +16,8 @@ import json
 
 from util import stdout_to_less
 
+from session import login
+
 VERBOSE = False
 
 def log(msg):
@@ -24,43 +26,6 @@ def log(msg):
     '''
     if VERBOSE:
         print(msg)
-
-def remove_newline(str_):
-    '''
-        The utility 'op' seems to give us weird newlines (probably for bash?),
-        remove these.
-    '''
-    news = ['\n', '\\n', '\r', '\\r']
-    out = str_
-
-    for _n in news:
-        out = out.replace(_n, ' ')
-    return out
-
-def login(user):
-    '''
-        Use the utility 'op' to login to a given user.
-        This works by setting an environment variable, returned by the 'op'.
-        This session will hence be active during the runtime of this application.
-    '''
-    log("--> op signin " + user)
-    output = str(sp.check_output(['op', 'signin', user]))
-
-    log("Output:")
-    log(output)
-
-    output = remove_newline(output)
-    #sp.check_call(['eval', '$(op signin {})'.format(user)])
-
-    log("")
-    exports = [x for x in output.split() if x.startswith('OP_SESSION')]
-    for e in exports:
-        epos = e.find('=')
-        key = e[:epos]
-        val = e[epos:].strip(' =\"')
-
-        log('env[\'{}\'] = {}'.format(key, val))
-        os.environ[key] = val
 
 def find_subdicts(json_obj, containing=None):
     ''' Trim any non-dict type objects and optionally
