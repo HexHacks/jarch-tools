@@ -3,6 +3,7 @@
 
 import os
 import subprocess as sp
+import sys
 
 '''
     This file handles the login procedure.
@@ -11,33 +12,21 @@ import subprocess as sp
         * Update $XDG_DATA_HOME/peyop/session
 '''
 
-def remove_newline(str_):
-    '''
-        The utility 'op' seems to give us weird newlines (probably for bash?),
-        remove these.
-    '''
-    news = ['\n', '\\n', '\r', '\\r']
-    out = str_
+def token_key(user):
+    return 'OP_SESSION_{}'.format(user)
 
-    for _n in news:
-        out = out.replace(_n, ' ')
-    return out
-
-def login(user):
+def remote_fetch_token(user):
     '''
         Use the utility 'op' to login to a given user.
         This works by setting an environment variable, returned by the 'op'.
         This session will hence be active during the runtime of this application.
     '''
-    output = str(sp.check_output(['op', 'signin', user]))
+    encoding = sys.stdout.encoding
+    byte_str = sp.check_output(['op', 'signin', user, '--output=raw'])
+    decoded = byte_str.decode(encoding)
+    return decoded[:len(decoded) - 1] # Remove newline
 
-    output = remove_newline(output)
-    #sp.check_call(['eval', '$(op signin {})'.format(user)])
-
-    exports = [x for x in output.split() if x.startswith('OP_SESSION')]
-    for e in exports:
-        epos = e.find('=')
-        key = e[:epos]
-        val = e[epos:].strip(' =\"')
-
-        os.environ[key] = val
+def login(user):
+    token = remote_fetch_token(user)
+    key = token_key(user)
+    os.environ[key] = token
