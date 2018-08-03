@@ -12,10 +12,19 @@ import sys
         * Update $XDG_DATA_HOME/peyop/session
 '''
 
-def token_key(user):
-    return 'OP_SESSION_{}'.format(user)
+class Session:
+    def __init__(self, user, token):
+        self.user = user
+        self.token = token
 
-def remote_fetch_token(user):
+    def op_key(self):
+        return 'OP_SESSION_{}'.format(self.user)
+
+    def environment_enable(self):
+        os.environ[self.op_key()] = self.token
+
+
+def remote_touch_session(user):
     '''
         Use the utility 'op' to login to a given user.
         This works by setting an environment variable, returned by the 'op'.
@@ -24,9 +33,12 @@ def remote_fetch_token(user):
     encoding = sys.stdout.encoding
     byte_str = sp.check_output(['op', 'signin', user, '--output=raw'])
     decoded = byte_str.decode(encoding)
-    return decoded[:len(decoded) - 1] # Remove newline
+
+    # Remove newline
+    decoded = decoded[:len(decoded) - 1]
+
+    return Session(user, decoded)
 
 def login(user):
-    token = remote_fetch_token(user)
-    key = token_key(user)
-    os.environ[key] = token
+    session = remote_touch_session(user)
+    session.environment_enable()
